@@ -109,7 +109,7 @@ const openrouterLocalCLIAdapter = {
 // ─── 4. Dependência workspace:* nos package.json ─────────────────────────────
 console.log("\n[4/4] Adicionando dependência workspace:* nos package.json ...");
 for (const pkg of ["server", "ui", "cli"]) {
-    const filePath = path.join(PAPERCLIP_ROOT, `packages/${pkg}/package.json`);
+    const filePath = path.join(PAPERCLIP_ROOT, `${pkg}/package.json`);
     if (!fs.existsSync(filePath)) continue;
     const json = JSON.parse(readFile(filePath));
 
