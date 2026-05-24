@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-const PAPERCLIP_HOME = process.env.PAPERCLIP_HOME || process.env.HOME || "/paperclip";
+const PAPERCLIP_HOME = process.env.PAPERCLIP_HOME || path.join(process.env.HOME || "/paperclip", ".paperclip");
 const ADAPTER_LOCAL_PATH = "/app/packages/adapters/openrouter";
 const storePath = path.join(PAPERCLIP_HOME, "adapter-plugins.json");
 const type = "openrouter";
