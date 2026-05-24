@@ -44,9 +44,8 @@ console.log("\n[1/4] Patchando server/src/adapters/registry.ts ...");
     let src = readFile(filePath);
 
     const serverImports = `import * as openrouterServer from "@paperclipai/adapter-openrouter/server";
-import { type as openrouterType, label as openrouterLabel, models as openrouterModels } from "@paperclipai/adapter-openrouter";`;
-
-    const serverEntry = `  [openrouterType]: {
+import { type as openrouterType, label as openrouterLabel, models as openrouterModels } from "@paperclipai/adapter-openrouter";
+const openrouterLocalAdapter = {
     type: openrouterType,
     label: openrouterLabel,
     models: openrouterModels,
@@ -56,10 +55,10 @@ import { type as openrouterType, label as openrouterLabel, models as openrouterM
     detectModel: openrouterServer.detectModel,
     listSkills: openrouterServer.listSkills,
     syncSkills: openrouterServer.syncSkills,
-  },`;
+};`;
 
-    src = insertBefore(src, "\nexport ", serverImports + "\n");
-    src = insertBefore(src, "\n};", "\n" + serverEntry);
+    src = insertBefore(src, "function registerBuiltInAdapters", serverImports + "\n\n");
+    src = insertBefore(src, "    httpAdapter,", "    openrouterLocalAdapter,");
     writeFile(filePath, src);
 }
 
@@ -70,19 +69,18 @@ console.log("\n[2/4] Patchando ui/src/adapters/registry.ts ...");
     let src = readFile(filePath);
 
     const uiImports = `import * as openrouterUi from "@paperclipai/adapter-openrouter/ui";
-import { type as openrouterType, label as openrouterLabel, models as openrouterModels } from "@paperclipai/adapter-openrouter";`;
-
-    const uiEntry = `  [openrouterType]: {
+import { type as openrouterType, label as openrouterLabel, models as openrouterModels } from "@paperclipai/adapter-openrouter";
+const openrouterLocalUIAdapter = {
     type: openrouterType,
     label: openrouterLabel,
     models: openrouterModels,
-    parseStdout: openrouterUi.parseStdout,
-    buildConfig: openrouterUi.buildConfig,
-    configFields: openrouterUi.configFields,
-  },`;
+    parseStdoutLine: openrouterUi.parseStdout,
+    buildAdapterConfig: openrouterUi.buildConfig,
+    ConfigFields: openrouterUi.configFields,
+};`;
 
-    src = insertBefore(src, "\nexport ", uiImports + "\n");
-    src = insertBefore(src, "\n};", "\n" + uiEntry);
+    src = insertBefore(src, "function registerBuiltInUIAdapters", uiImports + "\n\n");
+    src = insertBefore(src, "    httpUIAdapter,", "    openrouterLocalUIAdapter,");
     writeFile(filePath, src);
 }
 
@@ -94,16 +92,14 @@ console.log("\n[3/4] Patchando cli/src/adapters/registry.ts ...");
         let src = readFile(filePath);
 
         const cliImports = `import * as openrouterCli from "@paperclipai/adapter-openrouter/cli";
-import { type as openrouterType, label as openrouterLabel } from "@paperclipai/adapter-openrouter";`;
-
-        const cliEntry = `  [openrouterType]: {
+import { type as openrouterType, label as openrouterLabel } from "@paperclipai/adapter-openrouter";
+const openrouterLocalCLIAdapter = {
     type: openrouterType,
-    label: openrouterLabel,
-    formatEvent: openrouterCli.formatEvent,
-  },`;
+    formatStdoutEvent: openrouterCli.formatEvent,
+};`;
 
-        src = insertBefore(src, "\nexport ", cliImports + "\n");
-        src = insertBefore(src, "\n};", "\n" + cliEntry);
+        src = insertBefore(src, "const adaptersByType", cliImports + "\n\n");
+        src = insertBefore(src, "    httpCLIAdapter,", "    openrouterLocalCLIAdapter,");
         writeFile(filePath, src);
     } else {
         console.log("  ⚠ cli/src/adapters/registry.ts não encontrado, pulando.");
