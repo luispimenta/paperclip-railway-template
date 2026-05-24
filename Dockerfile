@@ -15,6 +15,7 @@ WORKDIR /paperclip
 RUN git clone --depth 1 --branch "${PAPERCLIP_REF}" "${PAPERCLIP_REPO}" .
 COPY adapters/openrouter /paperclip/packages/adapters/openrouter
 COPY scripts/patch-registries.mjs /tmp/patch-registries.mjs
+RUN find /paperclip/packages -name "registry.ts" | head -20
 RUN node /tmp/patch-registries.mjs
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @paperclipai/ui build
