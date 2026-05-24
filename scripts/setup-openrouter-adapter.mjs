@@ -10,8 +10,7 @@ pkg.name = "@paperclipai/adapter-openrouter";
 pkg.main = "./dist/plugin.js";
 pkg.types = "./dist/plugin.d.ts";
 pkg.exports = { ".": "./dist/plugin.js", "./server": "./dist/server/index.js", "./ui": "./dist/ui/index.js", "./cli": "./dist/cli/index.js" };
-pkg.devDependencies = { ...(pkg.devDependencies ?? {}), "esbuild": "^0.25.0" };
-pkg.scripts = { ...(pkg.scripts ?? {}), build: "node build.mjs" };
+pkg.scripts = { ...(pkg.scripts ?? {}), build: "tsc" };
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 fs.writeFileSync(path.join(ADAPTER_DIR, "src", "plugin.ts"),
 `import * as root from "./index.js";
@@ -19,19 +18,6 @@ import * as server from "./server/index.js";
 export function createServerAdapter() {
   return { type: root.type, label: root.label, execute: server.execute, testEnvironment: server.testEnvironment, sessionCodec: server.sessionCodec, detectModel: server.detectModel, listSkills: server.listSkills, syncSkills: server.syncSkills, models: root.models, agentConfigurationDoc: root.agentConfigurationDoc, supportsLocalAgentJwt: false, supportsInstructionsBundle: false, requiresMaterializedRuntimeSkills: false };
 }
-`);
-fs.writeFileSync(path.join(ADAPTER_DIR, "build.mjs"),
-`import { build } from "esbuild";
-import { mkdirSync } from "node:fs";
-mkdirSync("dist", { recursive: true });
-await build({
-  entryPoints: ["src/plugin.ts"],
-  bundle: true,
-  platform: "node",
-  format: "esm",
-  outfile: "dist/plugin.js",
-});
-console.log("bundle ok");
 `);
 fs.writeFileSync(path.join(ADAPTER_DIR, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", outDir: "./dist", rootDir: "./src", declaration: true, strict: false, skipLibCheck: true, esModuleInterop: true }, include: ["src/**/*"] }, null, 2) + "\n");
 console.log("setup ok");

@@ -24,9 +24,6 @@ import type {
   UsageSummary,
 } from "@paperclipai/adapter-utils";
 import fs from "node:fs/promises";
-import {
-  renderPaperclipWakePrompt,
-} from "@paperclipai/adapter-utils/server-utils";
 
 import {
   OPENROUTER_CHAT_ENDPOINT,
@@ -47,6 +44,11 @@ import {
   writeRawStderr,
   type OnLog,
 } from "./transcript.js";
+
+function renderPaperclipWakePrompt(ctx: Record<string, unknown>, _opts?: { resumedSession?: boolean }): string {
+  const wake = ctx.paperclipWake as Record<string, unknown> | undefined;
+  return JSON.stringify(wake ?? ctx, null, 2);
+}
 
 // ----- types matching OpenRouter / OpenAI chat completions -----
 
