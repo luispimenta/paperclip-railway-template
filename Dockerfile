@@ -9,14 +9,21 @@ RUN apt-get update \
 RUN corepack enable
 
 ARG PAPERCLIP_REPO=https://github.com/paperclipai/paperclip.git
-ARG PAPERCLIP_REF=v2026.416.0
+ARG PAPERCLIP_REF=v2026.517.0
 
 WORKDIR /paperclip
 RUN git clone --depth 1 --branch "${PAPERCLIP_REF}" "${PAPERCLIP_REPO}" .
+
+# Mostra a estrutura real para debug (aparece nos logs do build)
+RUN echo "=== registry.ts encontrados ===" && \
+    find /paperclip -name "registry.ts" 2>/dev/null | sort && \
+    echo "=== diretorios raiz ===" && \
+    find /paperclip -maxdepth 3 -type d | sort | head -60
+
 COPY adapters/openrouter /paperclip/packages/adapters/openrouter
 COPY scripts/patch-registries.mjs /tmp/patch-registries.mjs
-RUN find /paperclip/packages -name "registry.ts" | head -20
 RUN node /tmp/patch-registries.mjs
+
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @paperclipai/ui build
 RUN pnpm --filter @paperclipai/plugin-sdk build
