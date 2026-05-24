@@ -70,13 +70,14 @@ console.log("\n[2/4] Patchando ui/src/adapters/registry.ts ...");
 
     const uiImports = `import * as openrouterUi from "@paperclipai/adapter-openrouter/ui";
 import { type as openrouterType, label as openrouterLabel, models as openrouterModels } from "@paperclipai/adapter-openrouter";
+import { OpenRouterConfigFields } from "./openrouter-config-fields";
 const openrouterLocalUIAdapter = {
     type: openrouterType,
     label: openrouterLabel,
     models: openrouterModels,
     parseStdoutLine: openrouterUi.parseStdout,
     buildAdapterConfig: openrouterUi.buildConfig,
-    ConfigFields: openrouterUi.configFields,
+    ConfigFields: OpenRouterConfigFields,
 };`;
 
     src = insertBefore(src, "function registerBuiltInUIAdapters", uiImports + "\n\n");
