@@ -14,28 +14,31 @@ ARG PAPERCLIP_REF=v2026.517.0
 WORKDIR /paperclip
 RUN git clone --depth 1 --branch "${PAPERCLIP_REF}" "${PAPERCLIP_REPO}" .
 
-# Mostra a estrutura real para debug (aparece nos logs do build)
-RUN echo "=== registry.ts encontrados ===" && \
-    find /paperclip -name "registry.ts" 2>/dev/null | sort && \
-    echo "=== diretorios raiz ===" && \
-    find /paperclip -maxdepth 3 -type d | sort | head -60
-
+# Copia o adapter para DENTRO do monorepo (para ter acesso aos workspace deps
+# @paperclipai/adapter-utils e @paperclipai/shared).
 COPY adapters/openrouter /paperclip/packages/adapters/openrouter
-COPY scripts/patch-registries.mjs /tmp/patch-registries.mjs
-RUN node /tmp/patch-registries.mjs
 
-RUN pnpm install --frozen-lockfile
+# Prepara o adapter como plugin externo:
+#   - renomeia o pacote para @paperclipai/adapter-openrouter
+#   - gera src/plugin.ts com createServerAdapter()
+#   - aponta exports/main para ./dist
+#   - escreve tsconfig que emite para ./dist
+COPY scripts/setup-openrouter-adapter.mjs /tmp/setup-openrouter-adapter.mjs
+RUN node /tmp/setup-openrouter-adapter.mjs
+
+# Instala tudo (linka o workspace) e compila o monorepo + o adapter.
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @paperclipai/ui build
 RUN pnpm --filter @paperclipai/plugin-sdk build
 RUN pnpm --filter @paperclipai/server build
+RUN pnpm --filter @paperclipai/adapter-openrouter build
 RUN test -f server/dist/index.js
+RUN test -f packages/adapters/openrouter/dist/plugin.js
 
 # Runtime image (direct Paperclip server, no wrapper).
 FROM node:22-bookworm
 ENV NODE_ENV=production
 ENV CLAUDE_CODE_BUBBLEWRAP=1
-# Match upstream production image defaults (paperclipai/paperclip Dockerfile) so
-# agent tooling, OpenCode, and config paths behave the same in containers.
 ENV HOME=/paperclip \
     PAPERCLIP_INSTANCE_ID=default \
     PAPERCLIP_CONFIG=/paperclip/instances/default/config.json \
@@ -60,17 +63,15 @@ COPY package.json /wrapper/package.json
 RUN npm install --omit=dev && npm cache clean --force
 COPY src /wrapper/src
 COPY scripts/entrypoint.sh /wrapper/entrypoint.sh
+COPY scripts/register-openrouter-plugin.mjs /wrapper/scripts/register-openrouter-plugin.mjs
 COPY scripts/bootstrap-ceo.mjs /wrapper/template/bootstrap-ceo.mjs
 RUN chmod +x /wrapper/entrypoint.sh
 
-# Optional local adapters/tools parity with upstream Dockerfile.
 RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest @google/gemini-cli@latest opencode-ai
 RUN npm install --global --omit=dev tsx
 RUN mkdir -p /paperclip \
     && chown -R node:node /app /paperclip /wrapper
 
-# Railway sets PORT at runtime and this process binds to it.
-# Entrypoint runs as root, fixes /paperclip volume permissions, then execs as node.
 EXPOSE 3100
 ENTRYPOINT ["/wrapper/entrypoint.sh"]
 CMD ["node", "/wrapper/src/server.js"]
