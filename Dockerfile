@@ -78,6 +78,8 @@ RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/cod
 RUN npm install --global --omit=dev tsx
 RUN mkdir -p /paperclip \
     && chown -R node:node /app /paperclip /wrapper
+RUN node /wrapper/scripts/register-openrouter-plugin.mjs \
+    && chown node:node /paperclip/.paperclip/adapter-plugins.json
 
 EXPOSE 3100
 ENTRYPOINT ["/wrapper/entrypoint.sh"]
