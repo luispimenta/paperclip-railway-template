@@ -13,6 +13,18 @@ ARG PAPERCLIP_REF=v2026.416.0
 
 WORKDIR /paperclip
 RUN git clone --depth 1 --branch "${PAPERCLIP_REF}" "${PAPERCLIP_REPO}" .
+COPY adapters/openrouter /paperclip/packages/adapters/openrouter
+COPY scripts/patch-registries.mjs /tmp/patch-registries.mjs
+RUN node /tmp/patch-registries.mjs
+RUN node -e "
+  ['server','ui','cli'].forEach(pkg => {
+    const path = \`/paperclip/packages/\${pkg}/package.json\`;
+    const json = JSON.parse(require('fs').readFileSync(path));
+    json.dependencies = json.dependencies || {};
+    json.dependencies['@paperclipai/adapter-openrouter'] = 'workspace:*';
+    require('fs').writeFileSync(path, JSON.stringify(json, null, 2));
+  });
+"
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @paperclipai/ui build
 RUN pnpm --filter @paperclipai/plugin-sdk build
