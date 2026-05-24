@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 import type { TranscriptEntry } from "@paperclipai/adapter-utils";
+export type { TranscriptEntry };
 
 /**
  * Parse stdout lines from an OpenRouter adapter run into
