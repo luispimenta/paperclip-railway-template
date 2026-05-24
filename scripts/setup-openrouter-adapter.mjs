@@ -9,7 +9,24 @@ const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 pkg.name = "@paperclipai/adapter-openrouter";
 pkg.main = "./dist/plugin.js";
 pkg.types = "./dist/plugin.d.ts";
-pkg.exports = { ".": "./dist/plugin.js", "./server": "./dist/server/index.js", "./ui": "./dist/ui/index.js", "./cli": "./dist/cli/index.js" };
+pkg.exports = {
+  ".": {
+    "types": "./dist/plugin.d.ts",
+    "default": "./dist/plugin.js"
+  },
+  "./server": {
+    "types": "./dist/server/index.d.ts",
+    "default": "./dist/server/index.js"
+  },
+  "./ui": {
+    "types": "./dist/ui/index.d.ts",
+    "default": "./dist/ui/index.js"
+  },
+  "./cli": {
+    "types": "./dist/cli/index.d.ts",
+    "default": "./dist/cli/index.js"
+  }
+};
 pkg.scripts = { ...(pkg.scripts ?? {}), build: "tsc" };
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 fs.writeFileSync(path.join(ADAPTER_DIR, "src", "plugin.ts"),
