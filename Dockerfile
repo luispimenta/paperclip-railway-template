@@ -30,10 +30,10 @@ COPY scripts/patch-registries.mjs /tmp/patch-registries.mjs
 RUN node /tmp/patch-registries.mjs
 # Instala tudo (linka o workspace) e compila o monorepo + o adapter.
 RUN pnpm install --no-frozen-lockfile
+RUN pnpm --filter @paperclipai/adapter-openrouter build
 RUN pnpm --filter @paperclipai/ui build
 RUN pnpm --filter @paperclipai/plugin-sdk build
 RUN pnpm --filter @paperclipai/server build
-RUN pnpm --filter @paperclipai/adapter-openrouter build
 RUN test -f server/dist/index.js
 RUN test -f packages/adapters/openrouter/dist/plugin.js
 RUN node --input-type=module --eval "\
