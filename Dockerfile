@@ -26,6 +26,8 @@ COPY adapters/openrouter /paperclip/packages/adapters/openrouter
 COPY scripts/setup-openrouter-adapter.mjs /tmp/setup-openrouter-adapter.mjs
 RUN node /tmp/setup-openrouter-adapter.mjs
 
+COPY scripts/patch-registries.mjs /tmp/patch-registries.mjs
+RUN node /tmp/patch-registries.mjs
 # Instala tudo (linka o workspace) e compila o monorepo + o adapter.
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @paperclipai/ui build
