@@ -13,10 +13,10 @@ pkg.exports = { ".": "./dist/plugin.js", "./server": "./dist/server/index.js", "
 pkg.scripts = { ...(pkg.scripts ?? {}), build: "tsc" };
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 fs.writeFileSync(path.join(ADAPTER_DIR, "src", "plugin.ts"),
-`import { type, label, models, agentConfigurationDoc } from "./index.js";
-import { execute, testEnvironment, sessionCodec, detectModel, listSkills, syncSkills } from "./server/index.js";
+`import * as root from "./index.js";
+import * as server from "./server/index.js";
 export function createServerAdapter() {
-  return { type, label, execute, testEnvironment, sessionCodec, detectModel, listSkills, syncSkills, models, agentConfigurationDoc, supportsLocalAgentJwt: false, supportsInstructionsBundle: false, requiresMaterializedRuntimeSkills: false };
+  return { type: root.type, label: root.label, execute: server.execute, testEnvironment: server.testEnvironment, sessionCodec: server.sessionCodec, detectModel: server.detectModel, listSkills: server.listSkills, syncSkills: server.syncSkills, models: root.models, agentConfigurationDoc: root.agentConfigurationDoc, supportsLocalAgentJwt: false, supportsInstructionsBundle: false, requiresMaterializedRuntimeSkills: false };
 }
 `);
 fs.writeFileSync(path.join(ADAPTER_DIR, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", outDir: "./dist", rootDir: "./src", declaration: true, strict: false, skipLibCheck: true, esModuleInterop: true }, include: ["src/**/*"] }, null, 2) + "\n");
