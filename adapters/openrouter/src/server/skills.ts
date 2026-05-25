@@ -6,10 +6,6 @@ import type {
   AdapterSkillSnapshot,
   AdapterSkillEntry,
 } from "@paperclipai/adapter-utils";
-import {
-  readPaperclipRuntimeSkillEntries,
-  resolvePaperclipDesiredSkillNames,
-} from "@paperclipai/adapter-utils/server-utils";
 import type { OnLog } from "./transcript.js";
 import { writeRawStderr } from "./transcript.js";
 
@@ -25,6 +21,14 @@ export interface LoadedSkill {
 export interface LoadSkillsParams {
   agentConfig: Record<string, unknown>;
   onLog: OnLog;
+}
+
+interface PaperclipSkillEntry {
+  key: string;
+  runtimeName: string;
+  source: string;
+  required: boolean;
+  requiredReason: string | null;
 }
 
 async function pathExists(p: string): Promise<boolean> {
@@ -45,63 +49,124 @@ function resolveSkillsRoot(agentConfig: Record<string, unknown>): string {
   return path.join(home, ".openrouter-adapter", "skills");
 }
 
+function parseRuntimeSkills(value: unknown): PaperclipSkillEntry[] {
+  if (!Array.isArray(value)) return [];
+  const out: PaperclipSkillEntry[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const entry = item as Record<string, unknown>;
+    const key = typeof entry.key === "string" ? entry.key.trim() : "";
+    const runtimeName = typeof entry.runtimeName === "string" ? entry.runtimeName.trim() : "";
+    const source = typeof entry.source === "string" ? entry.source.trim() : "";
+    if (!key || !runtimeName || !source) continue;
+    out.push({
+      key,
+      runtimeName,
+      source,
+      required: Boolean(entry.required),
+      requiredReason: typeof entry.requiredReason === "string" ? entry.requiredReason : null,
+    });
+  }
+  return out;
+}
+
+function resolveDesiredSkillNames(
+  config: Record<string, unknown>,
+  availableEntries: PaperclipSkillEntry[],
+): string[] {
+  const raw = config.paperclipSkillSync;
+  let explicit = false;
+  let desiredPref: string[] = [];
+  
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+    explicit = Object.prototype.hasOwnProperty.call(raw, "desiredSkills");
+    const desiredValues = (raw as Record<string, unknown>).desiredSkills;
+    if (Array.isArray(desiredValues)) {
+      desiredPref = desiredValues
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean);
+    }
+  }
+
+  const requiredSkills = availableEntries
+    .filter((entry) => entry.required)
+    .map((entry) => entry.key);
+
+  if (!explicit) {
+    return Array.from(new Set(requiredSkills));
+  }
+
+  const desiredSkills = desiredPref
+    .map((ref) => {
+      const normalized = ref.trim().toLowerCase();
+      if (!normalized) return "";
+      const exact = availableEntries.find((e) => e.key.trim().toLowerCase() === normalized);
+      if (exact) return exact.key;
+      const byName = availableEntries.find((e) => e.runtimeName && e.runtimeName.trim().toLowerCase() === normalized);
+      if (byName) return byName.key;
+      return normalized;
+    })
+    .filter(Boolean);
+
+  return Array.from(new Set([...requiredSkills, ...desiredSkills]));
+}
+
+async function listSkillsFromDirectory(root: string): Promise<PaperclipSkillEntry[]> {
+  if (!(await pathExists(root))) return [];
+  try {
+    const entries = await fs.readdir(root, { withFileTypes: true });
+    const loaded: PaperclipSkillEntry[] = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      const skillName = entry.name;
+      const skillDir = path.join(root, skillName);
+      const skillMdPath = path.join(skillDir, "SKILL.md");
+      if (!(await pathExists(skillMdPath))) continue;
+      loaded.push({
+        key: `paperclipai/paperclip/${skillName}`,
+        runtimeName: skillName,
+        source: skillDir,
+        required: false,
+        requiredReason: null,
+      });
+    }
+    return loaded;
+  } catch {
+    return [];
+  }
+}
+
+async function getAvailableEntries(config: Record<string, unknown>): Promise<PaperclipSkillEntry[]> {
+  const configured = parseRuntimeSkills(config.paperclipRuntimeSkills);
+  if (configured.length > 0) return configured;
+  
+  const customRoot = resolveSkillsRoot(config);
+  return listSkillsFromDirectory(customRoot);
+}
+
 export async function loadSkills(params: LoadSkillsParams): Promise<LoadedSkill[]> {
   const { agentConfig, onLog } = params;
 
-  // Resolve runtime skills and desired skills from paperclip config
-  const customRoot = resolveSkillsRoot(agentConfig);
-  const availableEntries = await readPaperclipRuntimeSkillEntries(agentConfig, __dirname, [customRoot]);
+  const availableEntries = await getAvailableEntries(agentConfig);
+  if (availableEntries.length === 0) return [];
 
-  if (availableEntries.length > 0) {
-    const desiredSkills = resolvePaperclipDesiredSkillNames(agentConfig, availableEntries);
-    const desiredSet = new Set(desiredSkills);
-
-    const loaded: LoadedSkill[] = [];
-    for (const entry of availableEntries) {
-      if (!desiredSet.has(entry.key)) continue;
-      const skillMdPath = path.join(entry.source, "SKILL.md");
-      if (!(await pathExists(skillMdPath))) continue;
-      try {
-        const content = await fs.readFile(skillMdPath, "utf8");
-        loaded.push({ name: entry.runtimeName, path: skillMdPath, content });
-      } catch (err) {
-        const reason = err instanceof Error ? err.message : String(err);
-        await writeRawStderr(onLog, `[openrouter] failed to read skill "${entry.runtimeName}": ${reason}`);
-      }
-    }
-    return loaded;
-  }
-
-  // Fallback: scan custom/default root
-  const root = resolveSkillsRoot(agentConfig);
-  if (!(await pathExists(root))) {
-    return [];
-  }
-
-  let entries: import("node:fs").Dirent[];
-  try {
-    entries = await fs.readdir(root, { withFileTypes: true });
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    await writeRawStderr(onLog, `[openrouter] could not read skills root ${root}: ${reason}`);
-    return [];
-  }
+  const desiredSkills = resolveDesiredSkillNames(agentConfig, availableEntries);
+  const desiredSet = new Set(desiredSkills);
 
   const loaded: LoadedSkill[] = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-    const skillName = entry.name;
-    const skillMdPath = path.join(root, skillName, "SKILL.md");
+  for (const entry of availableEntries) {
+    if (!desiredSet.has(entry.key)) continue;
+    const skillMdPath = path.join(entry.source, "SKILL.md");
     if (!(await pathExists(skillMdPath))) continue;
     try {
       const content = await fs.readFile(skillMdPath, "utf8");
-      loaded.push({ name: skillName, path: skillMdPath, content });
+      loaded.push({ name: entry.runtimeName, path: skillMdPath, content });
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
-      await writeRawStderr(onLog, `[openrouter] failed to read skill "${skillName}": ${reason}`);
+      await writeRawStderr(onLog, `[openrouter] failed to read skill "${entry.runtimeName}": ${reason}`);
     }
   }
-
   return loaded;
 }
 
@@ -118,9 +183,8 @@ export function renderSkillsForPrompt(skills: LoadedSkill[]): string {
 }
 
 export async function listSkills(ctx: AdapterSkillContext): Promise<AdapterSkillSnapshot> {
-  const customRoot = resolveSkillsRoot(ctx.config);
-  const availableEntries = await readPaperclipRuntimeSkillEntries(ctx.config, __dirname, [customRoot]);
-  const desiredSkills = resolvePaperclipDesiredSkillNames(ctx.config, availableEntries);
+  const availableEntries = await getAvailableEntries(ctx.config);
+  const desiredSkills = resolveDesiredSkillNames(ctx.config, availableEntries);
   const desiredSet = new Set(desiredSkills);
 
   const entries: AdapterSkillEntry[] = availableEntries.map((entry) => ({
