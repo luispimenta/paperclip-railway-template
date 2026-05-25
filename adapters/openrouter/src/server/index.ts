@@ -16,16 +16,13 @@
  *   - getConfigSchema     — UI form fields are still declared in src/ui/build-config.ts
  */
 
-import path from "node:path";
-import fs from "node:fs/promises";
 import type {
   AdapterSessionCodec,
-  AdapterSkillContext,
-  AdapterSkillSnapshot,
 } from "@paperclipai/adapter-utils";
 
 export { execute } from "./execute.js";
 export { testEnvironment, listOpenRouterModels } from "./test.js";
+export { listSkills, syncSkills } from "./skills.js";
 
 // ----- sessionCodec -----
 
@@ -72,73 +69,4 @@ export async function detectModel(): Promise<{
     return { model: fromEnv.trim(), provider: "openrouter", source: "env:OPENROUTER_MODEL" };
   }
   return { model: "openrouter/auto", provider: "openrouter", source: "default" };
-}
-
-// ----- listSkills / syncSkills -----
-
-/**
- * Minimal skill listing. We scan the same root our skill loader uses
- * (~/.openrouter-adapter/skills by default) and report each subdirectory
- * containing a SKILL.md as an external skill.
- *
- * v1 doesn't track desired-vs-installed because we don't sync from
- * Paperclip's managed skill store yet — that's a v3 feature.
- */
-function defaultSkillsRoot(): string {
-  const home = process.env.HOME || process.env.USERPROFILE || ".";
-  return path.join(home, ".openrouter-adapter", "skills");
-}
-
-export async function listSkills(_ctx: AdapterSkillContext): Promise<AdapterSkillSnapshot> {
-  const root = process.env.PAPERCLIP_SKILLS_DIR?.trim() || defaultSkillsRoot();
-  const snapshot: AdapterSkillSnapshot = {
-    adapterType: "openrouter",
-    supported: true,
-    mode: "ephemeral",
-    desiredSkills: [],
-    entries: [],
-    warnings: [],
-  };
-
-  let entries: import("node:fs").Dirent[] = [];
-  try {
-    entries = await fs.readdir(root, { withFileTypes: true });
-  } catch {
-    snapshot.warnings.push(`Skills root ${root} not present.`);
-    return snapshot;
-  }
-
-  for (const entry of entries) {
-    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-    const skillDir = path.join(root, entry.name);
-    const skillMd = path.join(skillDir, "SKILL.md");
-    let hasSkillMd = true;
-    try {
-      await fs.access(skillMd);
-    } catch {
-      hasSkillMd = false;
-    }
-    if (!hasSkillMd) continue;
-    snapshot.entries.push({
-      key: entry.name,
-      runtimeName: entry.name,
-      desired: true,
-      managed: false,
-      state: "external",
-      origin: "external_unknown",
-      sourcePath: skillDir,
-      targetPath: skillDir,
-    });
-  }
-
-  return snapshot;
-}
-
-export async function syncSkills(
-  ctx: AdapterSkillContext,
-  _desiredSkills: string[],
-): Promise<AdapterSkillSnapshot> {
-  // v1: skills are managed externally (operator drops them in skillsRoot).
-  // We just return the current listing — no copy/sync work.
-  return listSkills(ctx);
 }

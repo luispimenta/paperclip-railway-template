@@ -33,7 +33,7 @@ fs.writeFileSync(path.join(ADAPTER_DIR, "src", "plugin.ts"),
 `import * as root from "./index.js";
 import * as server from "./server/index.js";
 export function createServerAdapter() {
-  return { type: root.type, label: root.label, execute: server.execute, testEnvironment: server.testEnvironment, sessionCodec: server.sessionCodec, detectModel: server.detectModel, listSkills: server.listSkills, syncSkills: server.syncSkills, models: root.models, agentConfigurationDoc: root.agentConfigurationDoc, supportsLocalAgentJwt: false, supportsInstructionsBundle: false, requiresMaterializedRuntimeSkills: false };
+  return { type: root.type, label: root.label, execute: server.execute, testEnvironment: server.testEnvironment, sessionCodec: server.sessionCodec, detectModel: server.detectModel, listSkills: server.listSkills, syncSkills: server.syncSkills, models: root.models, agentConfigurationDoc: root.agentConfigurationDoc, supportsLocalAgentJwt: false, supportsInstructionsBundle: true, instructionsPathKey: "instructionsFilePath", requiresMaterializedRuntimeSkills: false };
 }
 export * from "./index.js";
 `);

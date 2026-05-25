@@ -55,6 +55,8 @@ const openrouterLocalAdapter = {
     detectModel: openrouterServer.detectModel,
     listSkills: openrouterServer.listSkills,
     syncSkills: openrouterServer.syncSkills,
+    supportsInstructionsBundle: true,
+    instructionsPathKey: "instructionsFilePath",
 };`;
 
     src = insertBefore(src, "function registerBuiltInAdapters", serverImports + "\n\n");
