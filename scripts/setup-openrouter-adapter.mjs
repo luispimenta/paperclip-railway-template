@@ -8,10 +8,12 @@ const pkgPath = path.join(ADAPTER_DIR, "package.json");
 const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 pkg.name = "@paperclipai/adapter-openrouter";
 pkg.main = "./dist/plugin.js";
+pkg.browser = "./dist/index.js";
 pkg.types = "./dist/plugin.d.ts";
 pkg.exports = {
   ".": {
     "types": "./dist/plugin.d.ts",
+    "browser": "./dist/index.js",
     "default": "./dist/plugin.js"
   },
   "./server": {
